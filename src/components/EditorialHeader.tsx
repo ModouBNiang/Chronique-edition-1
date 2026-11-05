@@ -205,7 +205,7 @@ export const EditorialHeader: React.FC<EditorialHeaderProps> = ({
             <span className="hidden lg:inline">GRILLE</span>
           </button>
 
-          {/* Chill Ambient Soundtrack Button & Equalizer */}
+          {/* Chill Ambient Soundtrack Button */}
           <div className="relative">
             <button
               onClick={togglePlaySound}
@@ -213,31 +213,22 @@ export const EditorialHeader: React.FC<EditorialHeaderProps> = ({
                 e.preventDefault();
                 setShowPlayerModal((prev) => !prev);
               }}
-              data-cursor={isPlaying ? "PAUSE" : "SON CHILL"}
-              title="Musique chill : Erik Satie - Gymnopédie N° 1 (Clic droit pour options)"
-              className={`flex items-center gap-2 border px-2.5 sm:px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] transition-all ${
+              data-cursor={isPlaying ? "PAUSE" : "MUSIQUE"}
+              title="Musique : Erik Satie - Gymnopédie N° 1 (Clic droit pour options)"
+              aria-label="Musique d'ambiance"
+              className={`flex items-center justify-center gap-1.5 border px-2.5 py-1.5 font-mono text-[10px] transition-all ${
                 isPlaying
                   ? 'border-[#c89d66] bg-[#c89d66]/20 text-[#c89d66] shadow-[0_0_15px_rgba(200,157,102,0.25)]'
                   : 'border-[#f4f1ea]/15 bg-[#141619]/60 text-[#9e9a90] hover:border-[#f4f1ea]/40 hover:text-[#f4f1ea]'
               }`}
             >
-              {isPlaying ? (
-                <>
-                  {/* Dynamic Equalizer Visualizer */}
-                  <span className="flex items-end gap-[2px] h-3.5 w-3.5 justify-center py-[1px]">
-                    <span className="w-[2px] bg-[#c89d66] rounded-full animate-eq-1 inline-block" />
-                    <span className="w-[2px] bg-[#c89d66] rounded-full animate-eq-2 inline-block" />
-                    <span className="w-[2px] bg-[#c89d66] rounded-full animate-eq-3 inline-block" />
-                  </span>
-                  <span className="hidden sm:inline font-medium tracking-[0.16em]">
-                    CHILL PIANO
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Music className="h-3.5 w-3.5 text-[#9e9a90]" />
-                  <span className="hidden sm:inline">SON CHILL</span>
-                </>
+              <Music className="h-3.5 w-3.5" />
+              {isPlaying && (
+                <span className="flex items-end gap-[2px] h-3 w-3 justify-center py-[1px]">
+                  <span className="w-[2px] bg-[#c89d66] rounded-full animate-eq-1 inline-block" />
+                  <span className="w-[2px] bg-[#c89d66] rounded-full animate-eq-2 inline-block" />
+                  <span className="w-[2px] bg-[#c89d66] rounded-full animate-eq-3 inline-block" />
+                </span>
               )}
             </button>
 
