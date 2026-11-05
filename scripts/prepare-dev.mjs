@@ -1,0 +1,25 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+const templateHtml = `<!doctype html>
+<html lang="fr" class="dark bg-[#0c0d0e] text-[#f4f1ea] antialiased selection:bg-[#c89d66]/30 selection:text-[#f4f1ea]">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CHRONIQUE — ÉDITION N° 01 | Micro-Magazine Éditorial Interactif</title>
+    <meta name="description" content="Micro-magazine éditorial interactif consacré à la direction artistique, au brutalisme poétique et aux univers visuels immersifs." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230c0d0e'/%3E%3Crect x='4' y='4' width='56' height='56' fill='none' stroke='%23c89d66' stroke-width='1.5'/%3E%3Ctext x='50%25' y='56%25' dominant-baseline='middle' text-anchor='middle' fill='%23f4f1ea' font-family='Georgia, serif' font-size='34' font-style='italic'%3EC%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body class="bg-[#0c0d0e] text-[#f4f1ea] overflow-x-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>`;
+
+fs.writeFileSync(path.join(process.cwd(), 'index.html'), templateHtml, 'utf8');
