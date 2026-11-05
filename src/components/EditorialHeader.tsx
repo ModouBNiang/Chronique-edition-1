@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Volume2, VolumeX, Grid, Eye } from 'lucide-react';
+import { Volume2, VolumeX, Grid, Eye, Music, Play, Pause, Disc } from 'lucide-react';
 import { MagazineEdition } from '../data/magazineData';
 import { VisualFilterMode } from './EditorialVisual';
 
@@ -15,6 +15,17 @@ interface EditorialHeaderProps {
   onLogoClick: () => void;
 }
 
+const AUDIO_TRACKS = [
+  {
+    title: 'Gymnopédie N° 1',
+    composer: 'Erik Satie',
+    style: 'Piano Chill & Contemplation Minérale',
+    localSrc: './audio/ambient-chill.mp3',
+    fallbackSrc:
+      'https://upload.wikimedia.org/wikipedia/commons/2/2a/Gymnopedie_No._1_%28ISRC_USUAN1100787%29.mp3',
+  },
+];
+
 export const EditorialHeader: React.FC<EditorialHeaderProps> = ({
   edition,
   scrollProgress,
@@ -26,9 +37,13 @@ export const EditorialHeader: React.FC<EditorialHeaderProps> = ({
   onToggleGrid,
   onLogoClick,
 }) => {
-  const [audioActive, setAudioActive] = useState(false);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(0.65);
+  const [showPlayerModal, setShowPlayerModal] = useState(false);
+  const [trackLoaded, setTrackLoaded] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sourceIndexRef = useRef(0);
 
   // Format current date in refined French editorial format
   const formattedToday = new Intl.DateTimeFormat('fr-FR', {
@@ -39,62 +54,75 @@ export const EditorialHeader: React.FC<EditorialHeaderProps> = ({
     .format(new Date())
     .toUpperCase();
 
-  // Optional Web Audio API museum ambient harmonic drone
-  const toggleAmbientSound = () => {
-    if (!audioActive) {
-      try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const ctx = new AudioCtx();
-        const masterGain = ctx.createGain();
-        masterGain.gain.setValueAtTime(0.001, ctx.currentTime);
-        masterGain.gain.exponentialRampToValueAtTime(0.035, ctx.currentTime + 1.8);
-        masterGain.connect(ctx.destination);
+  // Initialize and handle Audio player lifecycle
+  useEffect(() => {
+    const track = AUDIO_TRACKS[0];
+    const audio = new Audio();
+    audio.loop = true;
+    audio.volume = volume;
+    audio.preload = 'metadata';
 
-        // Warm A2 + E3 + C#4 fifth chord in sine/triangle waves
-        const freqs = [110, 164.81, 220, 277.18];
-        freqs.forEach((f, idx) => {
-          const osc = ctx.createOscillator();
-          const oscGain = ctx.createGain();
-          osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
-          osc.frequency.setValueAtTime(f, ctx.currentTime);
-          oscGain.gain.setValueAtTime(0.25 / (idx + 1), ctx.currentTime);
-          osc.connect(oscGain);
-          oscGain.connect(masterGain);
-          osc.start();
-        });
+    // Try local first, fallback to CDN if not found
+    audio.src = track.localSrc;
 
-        audioCtxRef.current = ctx;
-        gainNodeRef.current = masterGain;
-        setAudioActive(true);
-      } catch {
-        setAudioActive(false);
-      }
-    } else {
-      if (audioCtxRef.current && gainNodeRef.current) {
-        try {
-          gainNodeRef.current.gain.exponentialRampToValueAtTime(
-            0.0001,
-            audioCtxRef.current.currentTime + 0.5
-          );
-          setTimeout(() => {
-            audioCtxRef.current?.close();
-            audioCtxRef.current = null;
-          }, 550);
-        } catch {
-          audioCtxRef.current?.close();
+    const onCanPlay = () => setTrackLoaded(true);
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onError = () => {
+      // If relative file fails, switch to remote CDN
+      if (sourceIndexRef.current === 0) {
+        sourceIndexRef.current = 1;
+        audio.src = track.fallbackSrc;
+        audio.load();
+        if (isPlaying) {
+          audio.play().catch(() => {});
         }
       }
-      setAudioActive(false);
-    }
-  };
+    };
 
-  useEffect(() => {
+    audio.addEventListener('canplay', onCanPlay);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('error', onError);
+
+    audioRef.current = audio;
+
     return () => {
-      if (audioCtxRef.current) {
-        audioCtxRef.current.close().catch(() => {});
-      }
+      audio.removeEventListener('canplay', onCanPlay);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('error', onError);
+      audio.pause();
+      audio.src = '';
+      audioRef.current = null;
     };
   }, []);
+
+  // Sync volume updates
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
+
+  const togglePlaySound = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {
+        // Fallback directly to CDN stream if browser blocked local file
+        if (audioRef.current && sourceIndexRef.current === 0) {
+          sourceIndexRef.current = 1;
+          audioRef.current.src = AUDIO_TRACKS[0].fallbackSrc;
+          audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+        }
+      });
+    }
+  };
 
   const progressPercentage = Math.min(100, Math.max(0, Math.round(scrollProgress * 100)));
 
@@ -149,7 +177,7 @@ export const EditorialHeader: React.FC<EditorialHeaderProps> = ({
           </span>
         </div>
 
-        {/* Right: Optical Filter, Grid, Soundscape & Full-Screen Index Trigger */}
+        {/* Right: Optical Filter, Grid, Chill Soundscape & Full-Screen Index Trigger */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Optical Mode Switcher */}
           <button
@@ -177,19 +205,102 @@ export const EditorialHeader: React.FC<EditorialHeaderProps> = ({
             <span className="hidden lg:inline">GRILLE</span>
           </button>
 
-          {/* Ambient Soundscape Toggle */}
-          <button
-            onClick={toggleAmbientSound}
-            data-cursor="AUDIO"
-            title="Activer l'ambiance sonore minérale"
-            className={`flex items-center gap-1.5 border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
-              audioActive
-                ? 'border-[#c89d66] bg-[#c89d66]/15 text-[#c89d66]'
-                : 'border-[#f4f1ea]/15 text-[#9e9a90] hover:border-[#f4f1ea]/35 hover:text-[#f4f1ea]'
-            }`}
-          >
-            {audioActive ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-          </button>
+          {/* Chill Ambient Soundtrack Button & Equalizer */}
+          <div className="relative">
+            <button
+              onClick={togglePlaySound}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setShowPlayerModal((prev) => !prev);
+              }}
+              data-cursor={isPlaying ? "PAUSE" : "SON CHILL"}
+              title="Musique chill : Erik Satie - Gymnopédie N° 1 (Clic droit pour options)"
+              className={`flex items-center gap-2 border px-2.5 sm:px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] transition-all ${
+                isPlaying
+                  ? 'border-[#c89d66] bg-[#c89d66]/20 text-[#c89d66] shadow-[0_0_15px_rgba(200,157,102,0.25)]'
+                  : 'border-[#f4f1ea]/15 bg-[#141619]/60 text-[#9e9a90] hover:border-[#f4f1ea]/40 hover:text-[#f4f1ea]'
+              }`}
+            >
+              {isPlaying ? (
+                <>
+                  {/* Dynamic Equalizer Visualizer */}
+                  <span className="flex items-end gap-[2px] h-3.5 w-3.5 justify-center py-[1px]">
+                    <span className="w-[2px] bg-[#c89d66] rounded-full animate-eq-1 inline-block" />
+                    <span className="w-[2px] bg-[#c89d66] rounded-full animate-eq-2 inline-block" />
+                    <span className="w-[2px] bg-[#c89d66] rounded-full animate-eq-3 inline-block" />
+                  </span>
+                  <span className="hidden sm:inline font-medium tracking-[0.16em]">
+                    CHILL PIANO
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Music className="h-3.5 w-3.5 text-[#9e9a90]" />
+                  <span className="hidden sm:inline">SON CHILL</span>
+                </>
+              )}
+            </button>
+
+            {/* Floating Audio Popover / Mini-Lecteur */}
+            {showPlayerModal && (
+              <div className="absolute right-0 top-12 z-50 w-72 border border-[#c89d66]/40 bg-[#141619] p-4 shadow-[0_15px_40px_rgba(0,0,0,0.85)] backdrop-blur-md">
+                <div className="flex items-center justify-between pb-2 hairline-b">
+                  <div className="flex items-center gap-2">
+                    <Disc className={`h-3.5 w-3.5 text-[#c89d66] ${isPlaying ? 'animate-spin' : ''}`} />
+                    <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#c89d66]">
+                      BANDE SONORE ÉDITORIALE
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowPlayerModal(false)}
+                    className="font-mono text-[10px] text-[#9e9a90] hover:text-[#f4f1ea]"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="my-3 space-y-1">
+                  <p className="font-serif text-base text-[#f4f1ea] font-medium leading-snug">
+                    {AUDIO_TRACKS[0].title}
+                  </p>
+                  <p className="font-mono text-[10px] text-[#c89d66]">
+                    {AUDIO_TRACKS[0].composer}
+                  </p>
+                  <p className="text-[11px] text-[#9e9a90] italic">
+                    {AUDIO_TRACKS[0].style}
+                  </p>
+                </div>
+
+                {/* Volume Slider */}
+                <div className="pt-2 hairline-t space-y-1.5">
+                  <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-[#9e9a90]">
+                    <span>VOLUME</span>
+                    <span>{Math.round(volume * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="w-full accent-[#c89d66] h-1 bg-[#f4f1ea]/15 rounded cursor-pointer"
+                  />
+                </div>
+
+                {/* Play/Pause Button */}
+                <div className="mt-3 pt-2 hairline-t flex items-center justify-between">
+                  <button
+                    onClick={togglePlaySound}
+                    className="flex w-full items-center justify-center gap-2 border border-[#c89d66] bg-[#c89d66]/15 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f4f1ea] hover:bg-[#c89d66] hover:text-[#0c0d0e] transition-colors"
+                  >
+                    {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3 fill-current" />}
+                    <span>{isPlaying ? 'PAUSE' : 'LANCER LA MUSIQUE'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Minimalist Textual Hamburger / Index Trigger */}
           <button
